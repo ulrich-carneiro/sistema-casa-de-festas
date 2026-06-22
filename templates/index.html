@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema - Casa de Festas</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f9; }
+        
+        /* Layout dividindo a tela em duas colunas */
+        .layout-principal { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .coluna { flex: 1; min-width: 350px; max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        
+        input, button { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background-color: #218838; }
+        
+        .btn-excluir { background-color: #dc3545; padding: 5px; margin: 0; font-size: 14px; }
+        .btn-excluir:hover { background-color: #c82333; }
+        
+        .alerta { padding: 10px; margin-bottom: 15px; border-radius: 5px; text-align: center; font-weight: bold; }
+        .sucesso { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .erro { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #007bff; color: white; }
+        
+        /* Estilos do Calendário e Botões de Navegação */
+        .calendario-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .btn-nav { width: auto; padding: 5px 15px; background-color: #007bff; margin: 0; }
+        .btn-nav:hover { background-color: #0056b3; }
+        .calendario-header { font-size: 20px; font-weight: bold; color: #333; margin: 0; }
+        
+        .dias-semana { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-weight: bold; margin-bottom: 5px; color: #555; }
+        .dias-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .dia { padding: 15px 5px; text-align: center; border-radius: 5px; font-weight: bold; }
+        .livre { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .ocupado { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; text-decoration: line-through; }
+        .vazio { background-color: transparent; }
+        
+        .legenda { display: flex; justify-content: center; gap: 15px; margin-top: 20px; font-size: 14px; }
+        .legenda-item { display: flex; align-items: center; gap: 5px; }
+        .cor-livre { width: 15px; height: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .cor-ocupado { width: 15px; height: 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+<h1 style="text-align: center; color: #333;">Gestão de Agendamentos - Casa de Festas Majestic</h1>
+
+<div class="layout-principal">
+    
+    <div class="coluna">
+        <h2>Novo Agendamento</h2>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alerta {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <label for="nome">Nome do Cliente:</label>
+            <input type="text" id="nome" name="nome" placeholder="Ex: Maria Silva" required>
+
+            <label for="data">Data da Festa:</label>
+            <input type="date" id="data" name="data" required>
+
+            <label for="tipo_festa">Tipo de Evento:</label>
+            <input type="text" id="tipo_festa" name="tipo_festa" placeholder="Ex: Casamento, Aniversário" required>
+
+            <button type="submit">Cadastrar Festa</button>
+        </form>
+
+        <h3 style="margin-top: 30px;">Eventos Agendados</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Cliente</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for festa in agendamentos %}
+                <tr>
+                    <td>{{ festa[2] }}</td>
+                    <td>{{ festa[1] }}</td>
+                    <td>
+                        <a href="/excluir/{{ festa[0] }}" onclick="return confirm('Tem certeza que deseja cancelar esta festa?');">
+                            <button class="btn-excluir">Excluir</button>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" style="text-align: center;">Nenhuma festa agendada ainda.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="coluna">
+        <div class="calendario-nav">
+            <button class="btn-nav" id="btn-anterior">&lt;</button>
+            <div class="calendario-header" id="mes-ano"></div>
+            <button class="btn-nav" id="btn-proximo">&gt;</button>
+        </div>
+        
+        <div class="dias-semana">
+            <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
+        </div>
+        <div class="dias-grid" id="dias-calendario"></div>
+
+        <div class="legenda">
+            <div class="legenda-item"><div class="cor-livre"></div> Dia Disponível</div>
+            <div class="legenda-item"><div class="cor-ocupado"></div> Dia Ocupado</div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Puxa a lista de datas ocupadas com tratamento para evitar avisos no VS Code
+    const datasOcupadas = JSON.parse('{{ datas_ocupadas | tojson | safe }}');
+
+    // Variáveis globais para controlar o mês e o ano atualmente visíveis
+    let dataAtual = new Date();
+    let mesAtual = dataAtual.getMonth();
+    let anoAtual = dataAtual.getFullYear();
+
+    function gerarCalendario(mes, ano) {
+        const primeiroDia = new Date(ano, mes, 1).getDay();
+        const totalDias = new Date(ano, mes + 1, 0).getDate();
+
+        // Atualiza o nome do mês e ano no topo
+        const dataAlvo = new Date(ano, mes, 1);
+        const opcoesMes = { month: 'long', year: 'numeric' };
+        document.getElementById('mes-ano').innerText = dataAlvo.toLocaleDateString('pt-BR', opcoesMes).toUpperCase();
+
+        const grid = document.getElementById('dias-calendario');
+        grid.innerHTML = ''; // Limpa o calendário antes de redesenhar
+
+        // Preenche os espaços vazios antes do dia 1
+        for (let i = 0; i < primeiroDia; i++) {
+            grid.innerHTML += `<div class="dia vazio"></div>`;
+        }
+
+        // Preenche os dias do mês correspondente
+        for (let dia = 1; dia <= totalDias; dia++) {
+            const mesFormatado = String(mes + 1).padStart(2, '0');
+            const diaFormatado = String(dia).padStart(2, '0');
+            const dataString = `${ano}-${mesFormatado}-${diaFormatado}`;
+
+            let classeDia = "dia livre";
+            if (datasOcupadas.includes(dataString)) {
+                classeDia = "dia ocupado";
+            }
+
+            grid.innerHTML += `<div class="${classeDia}">${dia}</div>`;
+        }
+    }
+
+    // Configuração dos botões de navegação
+    document.getElementById('btn-anterior').addEventListener('click', () => {
+        mesAtual--;
+        if (mesAtual < 0) {
+            mesAtual = 11;
+            anoAtual--;
+        }
+        gerarCalendario(mesAtual, anoAtual);
+    });
+
+    document.getElementById('btn-proximo').addEventListener('click', () => {
+        mesAtual++;
+        if (mesAtual > 11) {
+            mesAtual = 0;
+            anoAtual++;
+        }
+        gerarCalendario(mesAtual, anoAtual);
+    });
+
+    // Inicializa o calendário com o mês atual no carregamento da página
+    window.onload = () => {
+        gerarCalendario(mesAtual, anoAtual);
+    };
+</script>
+
+</body>
+</html>
